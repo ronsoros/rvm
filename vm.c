@@ -17,30 +17,43 @@
 uint8_t data[4096];
 uint16_t regs[16];
 uint16_t ip;
-uint16_t lip[4];
+uint16_t lip[16];
 uint8_t lipp;
 #define incip ip+=4;
-typedef enum { MPUT = 1, MGET = 2 , MOV = 3 , JMP = 4, OUT = 5, ADD = 6, RET = 7, CALL = 8, JEQ = 9, JNE = 10 } opcodes;
+typedef enum { MPUT = 1, MGET = 2 , MOV = 3 , JMP = 4, OUT = 5, ADD = 6, RET = 7, CALL = 8, JEQ = 9, JNE = 10, LDW = 11, STW = 12, TIMER = 13, JGT = 14, JLT = 15, MUL = 16, SUB = 17, DIV = 18 } opcodes;
 typedef struct {
 	uint8_t op;
 	uint8_t p1;
 	uint8_t p2;
 	uint8_t p3;
 } opcode;
-
+uint16_t timer = 0;
+uint8_t cycles = 0;
 void run() {
+	uint8_t tjmp[4];
+	tjmp[0] = CALL;
 	ip = 0;
 	lipp = 0;
 	opcode* nexop = NULL;
 	while ( 1 ) {
+		cycles++;
+		if ( cycles == 0 && timer != 0 ) {
+			tjmp[1] = ((uint8_t*)&timer)[1];
+tjmp[2] = ((uint8_t*)&timer)[0];
+			//fprintf(stderr, "TIMER: going to 0x%04x\n", timer);
+			nexop = tjmp;
+			ip = ip - 4;
+		} else {
 		//fprintf(stderr,"RAW: %x %x %x %x\n", data[ip], data[ip+1], data[ip+2], data[ip+3]);
 		nexop = &data[ip];
-		//fprintf(stderr,"IP: 0x%04x %d - OPCODE: %d, params: %x %x %x\n", ip, ip, nexop->op, nexop->p1, nexop->p2, nexop->p3);
+		
+		}
+//fprintf(stderr,"IP: 0x%04x %d - OPCODE: %d, params: %x %x %x\n", ip, ip, nexop->op, nexop->p1, nexop->p2, nexop->p3);
 		switch(nexop->op) {
 			case 0: exit(0); break;
 			case MPUT: incip
 				uint16_t qq = auint(nexop->p1);
-				writebyte(qq,regs[nexop->p3]);
+				writebyte(regs[qq],regs[nexop->p3]);
 				break;
 			case MGET: incip
 //				printf("%d %d", ip, auint(nexop->p1));
@@ -48,16 +61,38 @@ void run() {
 				//printf("%d", q);
 				regs[nexop->p3] = readbyte(regs[q]);
 				break;
+			case STW: incip
+				uint16_t qx = auint(nexop->p1);
+				writebyte(regs[qx],regs[nexop->p3]);
+				writebyte(regs[qx+1],regs[nexop->p3]<<8);
+				break;
+			case LDW: incip
+//				printf("%d %d", ip, auint(nexop->p1));
+				uint16_t qy = auint(nexop->p1);
+				//printf("%d", q);
+				regs[nexop->p3] = (readbyte(regs[qy]) | readbyte(regs[qy+1]) >> 8);
+				break;
 			case MOV: incip
 				regs[nexop->p3] = auint(nexop->p1); break;
 			case JMP:
 				ip = auint(nexop->p1); break;
 			case OUT: incip
-				io_out(nexop->p1, regs[nexop->p2]); break;	
+				io_out(nexop->p1, regs[nexop->p2]); break;
+			#define EMIT_MATH(a, o) case a: incip \
+				regs[nexop->p3] = regs[nexop->p1] o regs[nexop->p2]; break;
+			EMIT_MATH(MUL, *)
+			EMIT_MATH(SUB, -)
+			EMIT_MATH(DIV, /)	
 			case ADD: incip
 				regs[nexop->p3] = regs[nexop->p1] + regs[nexop->p2]; 
 				//fprintf(stderr, "now: %d\n", regs[nexop->p3]);
 				break;
+			#define EMIT_JMP(a, o) case a: incip \
+				if ( regs[nexop->p1] o regs[nexop->p2] ) ip = regs[nexop->p3]; break;
+			EMIT_JMP(JLT, <)
+			EMIT_JMP(JGT, >)
+			case TIMER: incip
+				timer = auint(nexop->p1); break;
 			case JEQ: incip
 				if ( regs[nexop->p1] == regs[nexop->p2] ) ip = regs[nexop->p3]; break;
 			case JNE:

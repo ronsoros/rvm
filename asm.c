@@ -17,16 +17,25 @@ typedef struct {
 	uint8_t tb2;
 	int operands;
 } optable;
-optable ops[16] = {
+optable ops[] = {
 	{ "mov", 3, 1, 0, 2 },
 	{ "out", 5, 0, 0, 2 },
-	{ "mput", 1, 1, 0, 2 },
-	{ "mget", 2, 1, 0, 2 },
+	{ "stb", 1, 1, 0, 2 },
+	{ "ldb", 2, 1, 0, 2 },
+	{ "ldw", 11, 1, 0, 2 },
+	{ "stw", 12, 1, 0, 2 },
 	{ "call", 8, 1, 0, 1 },
 	{ "jmp", 4, 1, 0, 1 },
 	{ "ret", 7, 0, 0, 0 },
 	{ "jeq", 9, 0, 0, 3 },
-	{ "add", 6, 0, 0, 3 }
+	{ "jne", 10, 0, 0, 3 },
+	{ "jgt", 14, 0, 0, 3 },
+	{ "jlt", 15, 0, 0, 3 },
+	{ "add", 6, 0, 0, 3 },
+	{ "mul", 16, 0, 0, 3 },
+	{ "sub", 17, 0, 0, 3 },
+	{ "div", 18, 0, 0, 3 },
+	{ "timer", 13, 1, 0, 1 }
 };
 typedef struct {
 	char *name;
@@ -34,22 +43,28 @@ typedef struct {
 } symbol;
 symbol symbols[256];
 int nsymbols = 0;
+int firstpass = 0;
+#define emit_pass if(firstpass != 1)
 uint16_t getsymbol(char *name) {
 	for ( int s = 0; s < nsymbols; s++ ) {
 		if ( !strcmp(name, symbols[s].name) ) {
 			return symbols[s].ptr;
 		}
 	}
+	emit_pass {
+	fprintf(stderr, "Warning: symbol not found: %s\n", name);
+	}
 	return 0;
 }
 
 
-int tops = 9;
+int tops = sizeof(ops)/sizeof(optable);
 #define addsymbol(n, p) symbols[nsymbols].name=n;symbols[nsymbols].ptr=p;nsymbols++
-#define emit_pass if(firstpass != 1)
-void preproc(int firstpass, char *infile) {
+
+
+void preproc(int firstpassx, char *infile) {
 	FILE *in = fopen(infile, "r");
-	
+	firstpass = firstpassx;
 	int ip = 0;
 	char op[8];
 	uint8_t outbuf[4];
