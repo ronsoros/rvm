@@ -3,7 +3,25 @@
 char *outdata; char *outcode;
 #define apd(n, q, ...) sprintf(n, "%s" q, n, __VA_ARGS__)
 char* dtrs(char *in) {
+	char ret[512];
+	long long tmp = time(NULL);
 	// find if its a symbol, or whatever
+	if ( in[0] == '\'' ) {
+		sprintf(ret, "#%d", in[1]);
+		return ret;
+	}
+	if ( in[0] == '"' ) {
+		in[strlen(in)-1]=0;
+		apd(outdata, ".label %lld\n.ds %s\n.db #0\n", tmp, &in[1]);
+		sprintf(ret, "@%d", tmp);
+		return ret;
+	}
+	if ( isdigit(in[0]) ) {
+		sprintf(ret, "#%d", atoi(in));
+		return ret;
+	}
+	sprintf(ret, "@%s", in);
+	return ret;
 }
 int main(int argc, char **argv) {
 	char cmd[64];

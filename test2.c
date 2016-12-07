@@ -3,5 +3,5 @@ int outchar () {
 	//_asm out #0 #10;
 }
 int main () {
-	outchar (#65);
+	outchar ('A');
 }
