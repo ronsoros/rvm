@@ -14,13 +14,14 @@
 #define jmp(a) ip = a;
 #define mkw(a,b) ((a*256)+b)
 #define io_out(p, d) putchar(d)
+#define io_in(p) getchar()
 uint8_t data[4096];
 uint16_t regs[16];
 uint16_t ip;
 uint16_t lip[16];
 uint8_t lipp;
 #define incip ip+=4;
-typedef enum { MPUT = 1, MGET = 2 , MOV = 3 , JMP = 4, OUT = 5, ADD = 6, RET = 7, CALL = 8, JEQ = 9, JNE = 10, LDW = 11, STW = 12, TIMER = 13, JGT = 14, JLT = 15, MUL = 16, SUB = 17, DIV = 18 } opcodes;
+typedef enum { MPUT = 1, MGET = 2 , MOV = 3 , JMP = 4, OUT = 5, ADD = 6, RET = 7, CALL = 8, JEQ = 9, JNE = 10, LDW = 11, STW = 12, TIMER = 13, JGT = 14, JLT = 15, MUL = 16, SUB = 17, DIV = 18, IN = 19 } opcodes;
 typedef struct {
 	uint8_t op;
 	uint8_t p1;
@@ -78,6 +79,9 @@ tjmp[2] = ((uint8_t*)&timer)[0];
 				ip = auint(nexop->p1); break;
 			case OUT: incip
 				io_out(nexop->p1, regs[nexop->p2]); break;
+			case IN:
+				incip
+				regs[nexop->p2] = io_in(nexop->p1); break;
 			#define EMIT_MATH(a, o) case a: incip \
 				regs[nexop->p3] = regs[nexop->p1] o regs[nexop->p2]; break;
 			EMIT_MATH(MUL, *)
