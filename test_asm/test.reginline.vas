@@ -1,0 +1,31 @@
+.# test strngs
+jmp @main
+.# sample string
+.label str	.ds Hello World
+		.db #0
+.# print function
+.label outstr
+.# put '0' NUL in reg 2
+	mov #0 #2
+.# put the byte at addr #12 in reg 3
+	ldb #12 #3
+.# put address of @outret in reg 5
+	mov @outret #5
+.# check if reg 3 is reg 2 (NUL), if so, go to address in reg 5 (@outret)
+	jeq #3 #0 *@outret
+.# not? then print the char
+	out #0 #3
+.# move '1' into reg 1
+	mov #1 #1
+.# add 1 to address of string given in #0
+	add #1 #12 #12
+.# loop
+	jmp @outstr
+.label outret
+	ret
+.label main
+	mov @str #12
+	call @outstr
+	mov @str #12
+	call @outstr
+.label end
