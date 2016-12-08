@@ -9,7 +9,13 @@
 #endif
 char pp;
 char symbname[128];
-#define getpar(o) pp=fgetc(in);if(pp=='#'){fscanf(in, "%d ",&o);}else if(pp=='@'){fscanf(in, "%s ", symbname);o=getsymbol(symbname);}else{fscanf(in,"%x ",&o);}
+uint16_t oip = 0;
+uint16_t ips = 0;
+#define emit_inline(o) oip=ip;ip+=4+strlen(symbname)+1;emit_pass { fputc(4, stdout); }; ips = SWAP_UINT16(ip); \
+		emit_pass { fwrite(&ips, 2, 1, stdout); fputc(0, stdout); \
+		fwrite(symbname, strlen(symbname), 1, stdout); fputc(0, stdout); }\
+		o=oip+4; emit_pass { addsymbol("~inline_begin", oip+4); addsymbol("~inline_end", ip); }
+#define getpar(o) pp=fgetc(in);if(pp=='#'){fscanf(in, "%d ",&o);}else if(pp=='@'){fscanf(in, "%s ", symbname);o=getsymbol(symbname);}else if(pp=='"'){fscanf(in, "%[^\"]\" ",symbname);emit_inline(o);}else{fscanf(in,"%x ",&o);}
 typedef struct {
 	char *name;
 	uint8_t opcode;
@@ -65,7 +71,7 @@ int tops = sizeof(ops)/sizeof(optable);
 void preproc(int firstpassx, char *infile) {
 	FILE *in = fopen(infile, "r");
 	firstpass = firstpassx;
-	int ip = 0;
+	uint16_t ip = 0;
 	char op[8];
 	uint8_t outbuf[4];
 	int p1, p2, p3;
@@ -102,6 +108,12 @@ void preproc(int firstpassx, char *infile) {
 			fscanf(in, "%[^\n]", tmpbuf);
 			emit_pass { fwrite(tmpbuf, strlen(tmpbuf), 1, stdout); }
 			ip+=strlen(tmpbuf);
+		}
+	if ( !strcmp(op, ".dsz" ) ) {
+			char tmpbuf[4096];
+			fscanf(in, "%[^\n]", tmpbuf);
+			emit_pass { fwrite(tmpbuf, strlen(tmpbuf)+1, 1, stdout); }
+			ip+=strlen(tmpbuf)+1;
 		}
 		if ( !strcmp(op, ".#" ) ) {
 			char blah[256];
